@@ -1,0 +1,3 @@
+.env
+cdk/cdk.out/*
+lambda/*.zip
