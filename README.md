@@ -1,16 +1,12 @@
 # strava-claude
 
-A Claude Code skill that acts as your personal running coach, backed by an AWS Lambda proxy that handles Strava OAuth so you never have to.
-
-example [here](examples/long-run.md)
-
-**Trigger phrases:** "analyse my last run", "how was my run today", "check my training", etc.
+A personal running coach powered by Claude, backed by an AWS Lambda proxy that handles Strava OAuth so you never have to. Works in **Claude Code** (via a skill) and **Claude.ai web/mobile** (via MCP).
 
 ## Architecture
 
 ```
-Claude Code  →  curl  →  Lambda Function URL  →  Secrets Manager (OAuth creds)
-                                              →  Strava API
+Claude Code / Claude.ai  →  Lambda Function URL  →  Secrets Manager (OAuth creds)
+                                                 →  Strava API
 ```
 
 The Lambda refreshes your Strava access token on every invocation — no token rotation to manage.
@@ -19,55 +15,76 @@ The Lambda refreshes your Strava access token on every invocation — no token r
 
 - AWS CLI configured (`aws sts get-caller-identity` should work)
 - CDK bootstrapped in your target account/region (`cdk bootstrap`)
-- A Strava app with `client_id`, `client_secret`, and a `refresh_token` with `activity:read_all` scope
+- A Strava API app — create one at [strava.com/settings/api](https://www.strava.com/settings/api)
+- Go 1.21+ (for building the Lambda)
 
 ## Setup
 
-### 1. Create the AWS secret
+### 1. Configure your `.env`
 
-The CDK stack references an existing secret by name, so it must exist before deployment. Open [Makefile](Makefile) and edit the placeholder values in the `create-secret` target, then run:
+Copy the example and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Description |
+|---|---|
+| `CLIENT_ID` | Strava app client ID |
+| `CLIENT_SECRET` | Strava app client secret |
+| `REFRESH_TOKEN` | Long-lived Strava refresh token with `activity:read_all` scope — see [Getting a refresh token](#getting-a-strava-refresh-token) |
+| `SKILL_SECRET` | A secret string you choose — used to protect your Lambda URL |
+| `BASE_URL` | Set this after the first deploy (copied from CDK output) |
+| `TRAINING_GOAL` | Appears in the coaching persona, e.g. `training for a marathon` |
+
+### 2. Create the AWS secret
+
+The CDK stack reads credentials from Secrets Manager. Create it from your `.env`:
 
 ```bash
 make create-secret
 ```
 
-The `skill_auth_key` field is a simple shared secret that prevents your Function URL from being abused — pick anything hard to guess. You can verify the secret looks right with:
+Verify it looks right:
 
 ```bash
 make check-secret
 ```
 
-### 2. Deploy the Lambda + CDK stack
+### 3. Deploy the Lambda
 
 ```bash
 make deploy
 ```
 
-This compiles the Go Lambda for `linux/arm64`, zips it, and runs `cdk deploy`. At the end you'll see output like:
+This compiles the Go Lambda for `linux/arm64`, zips it, and runs `cdk deploy`. Copy the URL from the output and add it to your `.env` as `BASE_URL`:
 
 ```
 Outputs:
-StravaSkillStack.StravaSkillStackApiURL = https://abc123.execute-api.us-east-1.amazonaws.com/
+StravaSkillStack.StravaSkillStackApiURL = https://xxxx.execute-api.region.amazonaws.com
 ```
 
-Copy that URL.
-
-### 3. Install the skill
+### 4. Install the Claude Code skill
 
 ```bash
 make install-skill
 ```
 
-Then open `~/.claude/skills/strava-analyzer/SKILL.md` and replace the two placeholders:
+This substitutes `BASE_URL`, `SKILL_SECRET`, and `TRAINING_GOAL` into the skill template and writes it to `~/.claude/skills/strava-analyzer/SKILL.md`.
 
-| Placeholder | Replace with |
-|---|---|
-| `REPLACE_WITH_YOUR_LAMBDA_URL` | The `LambdaURL` output from step 2 |
-| `REPLACE_WITH_YOUR_SKILL_AUTH_KEY` | The `skill_auth_key` value from your secret |
+### 5. Connect Claude.ai (web/mobile) via MCP
+
+In Claude.ai → **Settings → Integrations → Add MCP Server**, enter:
+
+- **URL:** `https://<BASE_URL>/mcp?key=<SKILL_SECRET>`
+
+No other fields needed. Claude.ai's connector will discover the four tools automatically (`list_activities`, `get_activity`, `get_streams`, `get_laps`).
+
+To give the web/mobile Claude the same coaching persona, paste the contents of `skill/SKILL.md` (after running `make install-skill` so the variables are filled in) as a **Project instruction** in Claude.ai.
 
 ## Usage
 
-In Claude Code, just ask naturally:
+**Claude Code** — just ask naturally:
 
 ```
 analyse my last run
@@ -75,17 +92,19 @@ how was my workout today
 check my cardiac drift from yesterday's long run
 ```
 
-Claude will fetch your activity, streams, and laps, then give you a structured coaching breakdown covering pacing, cardiac drift (aerobic decoupling %), elevation impact, and next-session recommendations.
+**Claude.ai** — same phrases work once the MCP server is connected and the Project instruction is set.
+
+Claude fetches your activity, streams, and laps, then delivers a structured coaching breakdown: pacing strategy, cardiac drift (aerobic decoupling %), elevation impact, and next-session recommendations.
 
 ## Getting a Strava refresh token
 
-The Lambda uses a long-lived `refresh_token` (not an access token) to mint fresh short-lived tokens on every call. You need to do a one-time OAuth flow to get it.
+The Lambda uses a long-lived `refresh_token` to mint fresh short-lived tokens on every call. You need a one-time OAuth exchange to get it.
 
-**Step 1** — Authorise the app in your browser. Build the authorization URL with `scope=activity:read_all` using your Strava app settings. After approving, Strava redirects to `http://localhost/?code=XXXX&scope=...` — copy the `code` value.
+**Step 1** — Authorise your app in the browser. Build the authorization URL from your Strava app settings page, making sure `scope=activity:read_all` is included. After approving, Strava redirects to something like `http://localhost/?code=XXXX` — copy the `code`.
 
-> The `code` is single-use and expires in minutes. Do not put it in Secrets Manager — exchange it first.
+> The code is single-use and expires in minutes. Exchange it immediately — do not paste it into `.env` or Secrets Manager.
 
-**Step 2** — Exchange the code and write directly to Secrets Manager in one shot (avoids copy-paste truncation):
+**Step 2** — Exchange the code and write to Secrets Manager in one shot (avoids copy-paste truncation):
 
 ```bash
 RESPONSE=$(curl -s -X POST https://www.strava.com/oauth/token \
@@ -97,12 +116,12 @@ REFRESH=$(echo "$RESPONSE" | grep -o '"refresh_token":"[^"]*"' | cut -d'"' -f4) 
 echo "refresh_token length: ${#REFRESH}" && \
 aws secretsmanager put-secret-value \
   --secret-id StravaSkillStack/strava/oauth \
-  --secret-string "{\"client_id\":\"YOUR_CLIENT_ID\",\"client_secret\":\"YOUR_CLIENT_SECRET\",\"refresh_token\":\"$REFRESH\",\"skill_auth_key\":\"YOUR_SKILL_AUTH_KEY\"}"
+  --secret-string "{\"client_id\":\"YOUR_CLIENT_ID\",\"client_secret\":\"YOUR_CLIENT_SECRET\",\"refresh_token\":\"$REFRESH\",\"skill_auth_key\":\"YOUR_SKILL_SECRET\"}"
 ```
 
-The command prints the token length before writing — it should be `40`. If shorter, check the full `$RESPONSE` for the error.
+The command prints the token length — it should be `40`. If shorter, print `$RESPONSE` to see the error.
 
-**Step 3** — Verify scope:
+**Step 3** — Verify the token has the right scope:
 
 ```bash
 curl -s -X POST https://www.strava.com/oauth/token \
@@ -114,30 +133,28 @@ curl -s -X POST https://www.strava.com/oauth/token \
   -d grant_type=refresh_token | grep -o '"scope":"[^"]*"'
 ```
 
-Should return `"scope":"activity:read_all,read"`. If it only shows `"scope":"read"`, the OAuth flow was missing `activity:read_all` — repeat from Step 1.
+Should return `"scope":"activity:read_all,read"`. If it only shows `"scope":"read"`, the OAuth flow was done without `activity:read_all` — repeat from Step 1.
+
+Also update `REFRESH_TOKEN` in your `.env` so `make create-secret` stays in sync.
 
 ## Integration tests
 
-Run the full suite against the live deployed endpoint:
+Run the full suite against the live endpoint:
 
 ```bash
 make test
 ```
 
-Overrides for non-default endpoints:
-
-```bash
-make test BASE_URL=https://your-url.execute-api.region.amazonaws.com SKILL_SECRET=your-key
-```
-
-Covers: activity list, activity detail, streams, laps, and auth rejection.
+Covers REST endpoints (activities, detail, streams, laps, auth) and all MCP methods (initialize, tools/list, each tool, error cases, notifications).
 
 ## Makefile targets
 
 | Target | Description |
 |---|---|
+| `make create-secret` | Create the Secrets Manager secret from `.env` values |
+| `make check-secret` | Print the current secret value |
 | `make build-lambda` | Cross-compile Go for linux/arm64 and zip |
 | `make deploy` | Build + `cdk deploy` |
-| `make install-skill` | Copy skill to `~/.claude/skills/strava-analyzer/` |
+| `make install-skill` | Render skill template and copy to `~/.claude/skills/strava-analyzer/` |
 | `make test` | Run integration tests against the live endpoint |
 | `make clean` | Remove build artifacts |
