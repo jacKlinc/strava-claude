@@ -137,4 +137,46 @@ When executing an analysis, you must explicitly look for and report on the follo
 
 This architecture gives you the best of both worlds: a highly intelligent AI coach right in your terminal, and a secure, low-maintenance AWS backend that handles the OAuth headaches.
 
-To refine the Go implementation, how do you want to handle the time-series data for the streams endpoint—would you like the Go Lambda to pre-process and downsample the arrays to save Claude's context window, or just pass the raw JSON straight through?
+---
+
+### **5. MCP Server Extension (Claude Web/Mobile)**
+
+To make the skill available in Claude.ai web and mobile, the Lambda will be extended with an MCP server endpoint. Claude.ai supports remote MCP servers over the [Streamable HTTP transport](https://modelcontextprotocol.io/docs/concepts/transports) (MCP spec 2025-03-26), which maps cleanly to Lambda Function URLs.
+
+#### Transport
+
+MCP Streamable HTTP uses regular HTTP POST to `/mcp` for all client→server messages. The Lambda responds synchronously with JSON — no persistent SSE connection needed for a tool server like this. Lambda Function URLs handle this without any changes to the CDK stack.
+
+#### Tools exposed
+
+| MCP Tool | Maps to | Description |
+|---|---|---|
+| `list_activities` | `GET /athlete/activities` | Recent activities with optional `per_page`, `before`, `after` params |
+| `get_activity` | `GET /activities/{id}` | Full detail for one activity |
+| `get_streams` | `GET /activities/{id}/streams` | Downsampled time-series (≤200 pts) |
+| `get_laps` | `GET /activities/{id}/laps` | Lap splits |
+
+These are a thin wrapper over the existing Strava proxy logic — no new Strava calls, just re-routing through MCP's JSON-RPC envelope.
+
+#### Auth
+
+MCP doesn't mandate a specific auth scheme for remote servers. The same `x-claude-secret` header used by the Claude Code skill will work — Claude.ai lets you set custom headers when registering a remote MCP server.
+
+#### Lambda changes
+
+- Add `/mcp` route to the existing handler switch
+- Implement MCP protocol methods: `initialize`, `tools/list`, `tools/call`
+- Use [`github.com/mark3labs/mcp-go`](https://github.com/mark3labs/mcp-go) for the protocol layer, or hand-roll the thin JSON-RPC envelope (it's ~100 lines for a read-only tool server)
+- Existing `proxyStrava`, `fetchStreams`, and Strava auth logic are unchanged
+
+#### CDK changes
+
+None. The existing Function URL already handles arbitrary paths.
+
+#### Registering with Claude.ai
+
+Once deployed, add the server in Claude.ai Settings → Integrations → Add MCP Server:
+- **URL:** `https://<BASE_URL>/mcp`
+- **Custom header:** `x-claude-secret: <SKILL_SECRET>`
+
+The same system prompt / persona from `SKILL.md` can be pasted as a Project instruction in Claude.ai to give the web/mobile Claude the same coaching context.

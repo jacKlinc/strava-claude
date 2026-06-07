@@ -29,6 +29,7 @@ var (
 	reActivityDetail = regexp.MustCompile(`^/activities/(\d+)$`)
 	reStreams        = regexp.MustCompile(`^/activities/(\d+)/streams$`)
 	reLaps           = regexp.MustCompile(`^/activities/(\d+)/laps$`)
+	reMCP            = regexp.MustCompile(`^/mcp$`)
 )
 
 // Secret layout in Secrets Manager: strava/oauth
@@ -70,7 +71,11 @@ func handler(ctx context.Context, req events.LambdaFunctionURLRequest) (events.L
 		return errResp(500, "failed to load credentials: "+err.Error()), nil
 	}
 
-	if creds.SkillAuthKey != "" && req.Headers["x-claude-secret"] != creds.SkillAuthKey {
+	providedKey := req.Headers["x-claude-secret"]
+	if providedKey == "" {
+		providedKey = req.QueryStringParameters["key"]
+	}
+	if creds.SkillAuthKey != "" && providedKey != creds.SkillAuthKey {
 		return errResp(401, "unauthorized"), nil
 	}
 
@@ -94,6 +99,8 @@ func handler(ctx context.Context, req events.LambdaFunctionURLRequest) (events.L
 	case reLaps.MatchString(path):
 		m := reLaps.FindStringSubmatch(path)
 		return proxyStrava(accessToken, "/activities/"+m[1]+"/laps", qp)
+	case reMCP.MatchString(path):
+		return handleMCP(accessToken, req.Body)
 	default:
 		return errResp(404, "endpoint not found"), nil
 	}
