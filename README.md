@@ -2,6 +2,11 @@
 
 A personal running coach powered by Claude, backed by an AWS Lambda proxy that handles Strava OAuth so you never have to. Works in **Claude Code** (via a skill) and **Claude.ai web/mobile** (via MCP).
 
+
+> [!NOTE]
+> **AI Transparency Disclosure:** This project utilizes AI coding assistants to generate boilerplates, optimize benchmarks, and refine documentation. All critical logic and performance calculations are human-reviewed and verified.
+
+
 ## Architecture
 
 ```
