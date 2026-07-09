@@ -1,4 +1,4 @@
-module github.com/jack/strava-claude/lambda
+module github.com/jack/strava-claude/intervals
 
 go 1.25.0
 

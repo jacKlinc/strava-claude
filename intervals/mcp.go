@@ -8,20 +8,18 @@ import (
 var mcpTools = []map[string]interface{}{
 	{
 		"name":        "list_activities",
-		"description": "List recent Strava activities.",
+		"description": "List recent intervals.icu activities (synced from Garmin).",
 		"inputSchema": map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"per_page": map[string]interface{}{"type": "integer", "description": "Number of activities (default 5, max 30)"},
-				"page":     map[string]interface{}{"type": "integer", "description": "Page number"},
-				"before":   map[string]interface{}{"type": "integer", "description": "Only activities before this Unix epoch"},
-				"after":    map[string]interface{}{"type": "integer", "description": "Only activities after this Unix epoch"},
+				"oldest": map[string]interface{}{"type": "string", "description": "ISO-8601 date, only activities on/after this date"},
+				"newest": map[string]interface{}{"type": "string", "description": "ISO-8601 date, only activities on/before this date"},
 			},
 		},
 	},
 	{
 		"name":        "get_activity",
-		"description": "Full detail for a single Strava activity: splits, gear, segment efforts.",
+		"description": "Full detail for a single intervals.icu activity.",
 		"inputSchema": map[string]interface{}{
 			"type":     "object",
 			"required": []string{"id"},
@@ -32,7 +30,7 @@ var mcpTools = []map[string]interface{}{
 	},
 	{
 		"name":        "get_streams",
-		"description": "Downsampled time-series for an activity (HR, pace, altitude, cadence, etc). Returns ≤200 samples with sample_every indicating the stride.",
+		"description": "Downsampled time-series for an activity (HR, power, pace, altitude, cadence). Returns ≤200 samples with sample_every indicating the stride.",
 		"inputSchema": map[string]interface{}{
 			"type":     "object",
 			"required": []string{"id"},
@@ -42,8 +40,8 @@ var mcpTools = []map[string]interface{}{
 		},
 	},
 	{
-		"name":        "get_laps",
-		"description": "Lap-by-lap splits for a Strava activity.",
+		"name":        "get_intervals",
+		"description": "intervals.icu's auto-detected interval segments for an activity, with per-interval average power/HR/pace.",
 		"inputSchema": map[string]interface{}{
 			"type":     "object",
 			"required": []string{"id"},
@@ -54,40 +52,40 @@ var mcpTools = []map[string]interface{}{
 	},
 }
 
-func handleMCP(accessToken, body string) (events.LambdaFunctionURLResponse, error) {
-	return shared.HandleMCP(body, "strava-mcp", mcpTools, func(name string, args map[string]interface{}) (interface{}, *shared.MCPRPCError) {
-		return dispatchTool(accessToken, name, args)
+func handleMCP(apiKey, body string) (events.LambdaFunctionURLResponse, error) {
+	return shared.HandleMCP(body, "intervals-icu-mcp", mcpTools, func(name string, args map[string]interface{}) (interface{}, *shared.MCPRPCError) {
+		return dispatchTool(apiKey, name, args)
 	})
 }
 
-func dispatchTool(accessToken, name string, args map[string]interface{}) (interface{}, *shared.MCPRPCError) {
+func dispatchTool(apiKey, name string, args map[string]interface{}) (interface{}, *shared.MCPRPCError) {
 	switch name {
 	case "list_activities":
 		qp := map[string]string{}
-		for _, k := range []string{"per_page", "page", "before", "after"} {
+		for _, k := range []string{"oldest", "newest"} {
 			if v, ok := args[k]; ok {
 				qp[k] = shared.FormatArg(v)
 			}
 		}
-		return shared.WrapProxyResult(proxyStrava(accessToken, "/athlete/activities", qp))
+		return shared.WrapProxyResult(proxyIntervals(apiKey, "/athlete/0/activities", qp))
 	case "get_activity":
 		id, ok := shared.StringArg(args, "id")
 		if !ok {
 			return nil, shared.MissingArgError("id")
 		}
-		return shared.WrapProxyResult(proxyStrava(accessToken, "/activities/"+id, nil))
+		return shared.WrapProxyResult(proxyIntervals(apiKey, "/activity/"+id, nil))
 	case "get_streams":
 		id, ok := shared.StringArg(args, "id")
 		if !ok {
 			return nil, shared.MissingArgError("id")
 		}
-		return shared.WrapProxyResult(fetchStreams(accessToken, id))
-	case "get_laps":
+		return shared.WrapProxyResult(fetchStreams(apiKey, id))
+	case "get_intervals":
 		id, ok := shared.StringArg(args, "id")
 		if !ok {
 			return nil, shared.MissingArgError("id")
 		}
-		return shared.WrapProxyResult(proxyStrava(accessToken, "/activities/"+id+"/laps", nil))
+		return shared.WrapProxyResult(proxyIntervals(apiKey, "/activity/"+id+"/intervals", nil))
 	default:
 		return nil, shared.UnknownToolError(name)
 	}

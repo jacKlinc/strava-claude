@@ -41,6 +41,8 @@ cp .env.example .env
 | `SKILL_SECRET` | A secret string you choose — used to protect your Lambda URL |
 | `BASE_URL` | Set this after the first deploy (copied from CDK output) |
 | `TRAINING_GOAL` | Appears in the coaching persona, e.g. `training for a marathon` |
+| `INTERVALS_API_KEY` | intervals.icu API key — from intervals.icu Settings → Developer Settings (optional, only needed for the intervals.icu MCP integration below) |
+| `INTERVALS_BASE_URL` | Set this after `make deploy-intervals` (copied from CDK output) |
 
 ### 2. Create the AWS secret
 
@@ -86,6 +88,26 @@ In Claude.ai → **Settings → Integrations → Add MCP Server**, enter:
 No other fields needed. Claude.ai's connector will discover the four tools automatically (`list_activities`, `get_activity`, `get_streams`, `get_laps`).
 
 To give the web/mobile Claude the same coaching persona, paste the contents of `skill/SKILL.md` (after running `make install-skill` so the variables are filled in) as a **Project instruction** in Claude.ai.
+
+### 6. (Optional) Connect intervals.icu for granular Garmin data
+
+intervals.icu imports activities directly from Garmin, so it has finer-grained HR/power/pace
+streams than Strava exposes. A second, independent Lambda + MCP server proxies it, so Claude can
+pull that data without you manually uploading a `.fit` file into the chat.
+
+```bash
+make create-intervals-secret   # writes INTERVALS_API_KEY + SKILL_SECRET to Secrets Manager
+make deploy-intervals           # builds + deploys the IntervalsSkillStack
+```
+
+Copy the printed URL into `.env` as `INTERVALS_BASE_URL`, then in Claude.ai → **Settings →
+Integrations → Add MCP Server**, enter:
+
+- **URL:** `https://<INTERVALS_BASE_URL>/mcp?key=<SKILL_SECRET>`
+
+Claude.ai will discover four tools: `list_activities`, `get_activity`, `get_streams`,
+`get_intervals` (intervals.icu's auto-detected interval segments — richer than Strava laps,
+with per-interval average power/HR/pace).
 
 ## Usage
 
@@ -163,3 +185,7 @@ Covers REST endpoints (activities, detail, streams, laps, auth) and all MCP meth
 | `make install-skill` | Render skill template and copy to `~/.claude/skills/strava-analyzer/` |
 | `make test` | Run integration tests against the live endpoint |
 | `make clean` | Remove build artifacts |
+| `make create-intervals-secret` | Create the intervals.icu Secrets Manager secret from `.env` values |
+| `make check-intervals-secret` | Print the current intervals.icu secret value |
+| `make build-intervals-lambda` | Cross-compile Go for linux/arm64 and zip the intervals.icu Lambda |
+| `make deploy-intervals` | Build + `cdk deploy IntervalsSkillStack` |
