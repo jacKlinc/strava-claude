@@ -45,7 +45,17 @@ type tokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
+var corsHeaders = map[string]string{
+	"Access-Control-Allow-Origin":  "*",
+	"Access-Control-Allow-Methods": "GET, OPTIONS",
+	"Access-Control-Allow-Headers": "Content-Type, x-claude-secret",
+}
+
 func handler(ctx context.Context, req events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
+	if req.RequestContext.HTTP.Method == http.MethodOptions {
+		return events.LambdaFunctionURLResponse{StatusCode: 200, Headers: corsHeaders}, nil
+	}
+
 	var creds credentials
 	if err := shared.LoadSecret(ctx, "SECRET_ARN", &creds); err != nil {
 		return shared.ErrResp(500, "failed to load credentials: "+err.Error()), nil
