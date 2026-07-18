@@ -1,3 +1,7 @@
 .env
 cdk/cdk.out/*
+cdk/cdk
 lambda/*.zip
+lambda/lambda
+intervals/*.zip
+intervals/intervals

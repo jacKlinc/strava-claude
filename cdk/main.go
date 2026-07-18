@@ -47,6 +47,11 @@ func newSkillStack(scope constructs.Construct, id string, cfg skillStackConfig) 
 
 	api := awsapigatewayv2.NewHttpApi(stack, jsii.String(cfg.IDPrefix+"-Api"), &awsapigatewayv2.HttpApiProps{
 		ApiName: jsii.String(cfg.IDPrefix + "-Api"),
+		CorsPreflight: &awsapigatewayv2.CorsPreflightOptions{
+			AllowOrigins: jsii.Strings("*"),
+			AllowMethods: &[]awsapigatewayv2.CorsHttpMethod{awsapigatewayv2.CorsHttpMethod_GET},
+			AllowHeaders: jsii.Strings("content-type", "x-claude-secret"),
+		},
 	})
 
 	integration := awsapigatewayv2integrations.NewHttpLambdaIntegration(
