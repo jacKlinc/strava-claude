@@ -16,7 +16,7 @@ REFRESH_TOKEN      ?= $(shell grep '^REFRESH_TOKEN='      .env 2>/dev/null | cut
 INTERVALS_API_KEY  ?= $(shell grep '^INTERVALS_API_KEY='  .env 2>/dev/null | cut -d= -f2-)
 INTERVALS_BASE_URL ?= $(shell grep '^INTERVALS_BASE_URL=' .env 2>/dev/null | cut -d= -f2-)
 
-.PHONY: all build-lambda deploy install-skill create-secret check-secret test clean \
+.PHONY: all build-lambda build-all deploy install-skill create-secret check-secret test clean \
         build-intervals-lambda deploy-intervals create-intervals-secret check-intervals-secret
 
 all: deploy install-skill
@@ -27,7 +27,11 @@ build-lambda:
 	cd $(LAMBDA_DIR) && zip -j bootstrap.zip bootstrap
 	rm -f $(LAMBDA_DIR)/bootstrap
 
-deploy: build-lambda
+# Both stacks live in one CDK app, so any `cdk deploy` synthesises both and
+# needs both zips on disk — even when deploying only one stack.
+build-all: build-lambda build-intervals-lambda
+
+deploy: build-all
 	@echo "→ Deploying CDK stack..."
 	cd $(CDK_DIR) && cdk deploy StravaSkillStack --require-approval never
 
@@ -37,7 +41,7 @@ build-intervals-lambda:
 	cd $(INTERVALS_DIR) && zip -j bootstrap.zip bootstrap
 	rm -f $(INTERVALS_DIR)/bootstrap
 
-deploy-intervals: build-intervals-lambda
+deploy-intervals: build-all
 	@echo "→ Deploying intervals.icu CDK stack..."
 	cd $(CDK_DIR) && cdk deploy IntervalsSkillStack --require-approval never
 
