@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug: intervals (all debug routes)",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/intervals",
+      "buildFlags": "-tags=debug",
+      "args": ["-test.run", "TestDebug", "-test.v"],
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Debug: intervals unit tests",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/intervals"
+    },
+    {
+      "name": "Debug: shared package tests",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/shared"
+    }
+  ]
+}

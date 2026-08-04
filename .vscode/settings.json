@@ -1,0 +1,11 @@
+{
+  // Makes the `debug` build tag visible to gopls (so intervals/debug_test.go
+  // resolves in the editor) and to the test runner, and feeds .env to any test
+  // launched from the "run test | debug test" codelens.
+  "go.buildFlags": ["-tags=debug"],
+  "go.testTags": "debug",
+  "go.testEnvFile": "${workspaceFolder}/.env",
+  "gopls": {
+    "build.buildFlags": ["-tags=debug"]
+  }
+}

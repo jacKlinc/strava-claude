@@ -174,6 +174,30 @@ make test
 
 Covers REST endpoints (activities, detail, streams, laps, auth) and all MCP methods (initialize, tools/list, each tool, error cases, notifications).
 
+## Local debugging
+
+`intervals/debug_test.go` runs the Lambda handler locally so you can step through it. It's behind a
+`//go:build debug` tag, so it never reaches normal builds, tests, or the deployed binary.
+
+Set a breakpoint in `intervals/main.go`, then click **debug test** above the route you want —
+`TestDebugListActivities`, `TestDebugActivityDetail`, `TestDebugStreams`, `TestDebugIntervals`, or
+`TestDebugMCP`. Nothing to configure: `.vscode/settings.json` supplies the build tag and your `.env`.
+Breakpoints in the `shared` module work too. To inspect a different activity, edit the
+`debugActivityID` constant at the top of the file.
+
+No AWS credentials needed — `shared.LoadSecret` short-circuits when `SECRET_JSON` is set, and the
+harness builds that from `INTERVALS_API_KEY` + `SKILL_SECRET` in `.env`. Set `SECRET_ARN` in `.env`
+if you'd rather exercise the real Secrets Manager path. The upstream intervals.icu calls are real
+either way.
+
+From the terminal:
+
+```bash
+cd intervals
+go test -tags debug -run TestDebug -v .
+dlv test --build-flags='-tags=debug' -- -test.run TestDebugActivityDetail   # then: break main.go:55
+```
+
 ## Makefile targets
 
 | Target | Description |
