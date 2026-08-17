@@ -50,10 +50,10 @@ func handler(ctx context.Context, req events.LambdaFunctionURLRequest) (events.L
 
 	switch {
 	case reActivities.MatchString(path):
-		return proxyIntervals(creds.APIKey, "/athlete/0/activities", qp)
+		return proxyActivities(creds.APIKey, "/athlete/0/activities", qp)
 	case reActivityDetail.MatchString(path):
 		m := reActivityDetail.FindStringSubmatch(path)
-		return proxyIntervals(creds.APIKey, "/activity/"+m[1], qp)
+		return proxyActivities(creds.APIKey, "/activity/"+m[1], qp)
 	case reStreams.MatchString(path):
 		m := reStreams.FindStringSubmatch(path)
 		return fetchStreams(creds.APIKey, m[1])
@@ -71,6 +71,18 @@ func proxyIntervals(apiKey, path string, qp map[string]string) (events.LambdaFun
 	return shared.Proxy(intervalsBase, path, qp, func(r *http.Request) {
 		r.SetBasicAuth("API_KEY", apiKey)
 	})
+}
+
+// proxyActivities is proxyIntervals for the routes that return activity objects,
+// tagging each one with temp_source so consumers don't read a wrist-sensor
+// temperature as the ambient conditions.
+func proxyActivities(apiKey, path string, qp map[string]string) (events.LambdaFunctionURLResponse, error) {
+	resp, err := proxyIntervals(apiKey, path, qp)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return resp, err
+	}
+	resp.Body = string(shared.AnnotateTemp([]byte(resp.Body)))
+	return resp, nil
 }
 
 func fetchStreams(apiKey, activityID string) (events.LambdaFunctionURLResponse, error) {

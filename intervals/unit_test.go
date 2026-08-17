@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -48,6 +49,36 @@ func TestHandleMCPToolsList(t *testing.T) {
 	}
 	if len(want) != 0 {
 		t.Fatalf("missing expected tools: %v", want)
+	}
+}
+
+// The activity tools must keep warning consumers that average_temp is a device
+// sensor reading, not ambient temperature — see shared.AnnotateTemp.
+func TestHandleMCPActivityToolsDocumentTempSource(t *testing.T) {
+	resp, err := handleMCP("", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out := mustUnmarshalMCP(t, resp.Body)
+	tools := out["result"].(map[string]interface{})["tools"].([]interface{})
+
+	need := map[string]bool{"list_activities": true, "get_activity": true}
+	for _, tool := range tools {
+		m := tool.(map[string]interface{})
+		name := m["name"].(string)
+		if !need[name] {
+			continue
+		}
+		delete(need, name)
+		desc := m["description"].(string)
+		for _, want := range []string{"temp_source", "average_weather_temp", "sensor"} {
+			if !strings.Contains(desc, want) {
+				t.Fatalf("tool %s: description missing %q: %s", name, want, desc)
+			}
+		}
+	}
+	if len(need) != 0 {
+		t.Fatalf("tools not found in tools/list: %v", need)
 	}
 }
 

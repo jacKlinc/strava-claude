@@ -25,6 +25,8 @@ All requests require the header: `-H "x-claude-secret: ${SKILL_SECRET}"`
 
 The `/streams` endpoint returns pre-condensed data (≤200 samples). The response includes `sample_every` (e.g. `18` means every 18th second was kept) so you can correctly compute time-axis values.
 
+**Temperature is not ambient temperature.** The `temp` stream and any `average_temp` / `min_temp` / `max_temp` field are device sensor readings — on a wrist-worn watch they track skin temperature under the strap, typically 10–15°C above the air. Treat a value as ambient only when the activity's `temp_source` is `weather_service`, and read it from `average_weather_temp`. Otherwise say ambient temperature is unavailable — never assert an air temperature or attribute drift to heat off the sensor reading.
+
 ## Standard Analysis Protocol
 
 When the user asks to analyse a run, execute these steps in order:

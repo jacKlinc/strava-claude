@@ -8,7 +8,7 @@ import (
 var mcpTools = []map[string]interface{}{
 	{
 		"name":        "list_activities",
-		"description": "List recent intervals.icu activities (synced from Garmin).",
+		"description": "List recent intervals.icu activities (synced from Garmin). average_temp/min_temp/max_temp are device sensor readings — on wrist-worn devices these approximate skin temperature and must not be read as ambient conditions. For ambient temperature use average_weather_temp and the related weather fields, populated when has_weather is true. Each activity carries temp_source (weather_service | device_sensor | unavailable) — branch on that rather than inferring.",
 		"inputSchema": map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -19,7 +19,7 @@ var mcpTools = []map[string]interface{}{
 	},
 	{
 		"name":        "get_activity",
-		"description": "Full detail for a single intervals.icu activity.",
+		"description": "Full detail for a single intervals.icu activity. average_temp/min_temp/max_temp are device sensor readings — on wrist-worn devices these approximate skin temperature and must not be read as ambient conditions. For ambient temperature use average_weather_temp and the related weather fields, populated when has_weather is true. The activity carries temp_source (weather_service | device_sensor | unavailable) — branch on that rather than inferring.",
 		"inputSchema": map[string]interface{}{
 			"type":     "object",
 			"required": []string{"id"},
@@ -67,13 +67,13 @@ func dispatchTool(apiKey, name string, args map[string]interface{}) (interface{}
 				qp[k] = shared.FormatArg(v)
 			}
 		}
-		return shared.WrapProxyResult(proxyIntervals(apiKey, "/athlete/0/activities", qp))
+		return shared.WrapProxyResult(proxyActivities(apiKey, "/athlete/0/activities", qp))
 	case "get_activity":
 		id, ok := shared.StringArg(args, "id")
 		if !ok {
 			return nil, shared.MissingArgError("id")
 		}
-		return shared.WrapProxyResult(proxyIntervals(apiKey, "/activity/"+id, nil))
+		return shared.WrapProxyResult(proxyActivities(apiKey, "/activity/"+id, nil))
 	case "get_streams":
 		id, ok := shared.StringArg(args, "id")
 		if !ok {
