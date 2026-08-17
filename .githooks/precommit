@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Enable with: git config core.hooksPath .githooks
+set -euo pipefail
+
+
+# Fixes all files in dir that need a format
+gofmt -w .
+# Recursively vets all code in dir for dodgy structs
+go vet ./...
+# Recursively compiles all code in dir 	
+go build ./...
+# Recursively runs tests in all code in dir 	
+go test ./...
+
+# Update Claude skill
+make install-skill
