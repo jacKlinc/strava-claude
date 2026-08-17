@@ -5,3 +5,5 @@ lambda/*.zip
 lambda/lambda
 intervals/*.zip
 intervals/intervals
+bench/functions.json
+bench/results/

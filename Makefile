@@ -16,8 +16,16 @@ REFRESH_TOKEN      ?= $(shell grep '^REFRESH_TOKEN='      .env 2>/dev/null | cut
 INTERVALS_API_KEY  ?= $(shell grep '^INTERVALS_API_KEY='  .env 2>/dev/null | cut -d= -f2-)
 INTERVALS_BASE_URL ?= $(shell grep '^INTERVALS_BASE_URL=' .env 2>/dev/null | cut -d= -f2-)
 
+BENCH_DIR          := ./bench
+BENCH_REGION       ?= ca-west-1
+BENCH_COLD_ITERS   ?= 8
+BENCH_WARM_ITERS   ?= 15
+# Activity to benchmark against. Needs the intervals.icu "i" prefix.
+BENCH_ACTIVITY_ID  ?= i170806275
+
 .PHONY: all build-lambda build-all deploy install-skill create-secret check-secret test clean \
-        build-intervals-lambda deploy-intervals create-intervals-secret check-intervals-secret
+        build-intervals-lambda deploy-intervals create-intervals-secret check-intervals-secret \
+        bench bench-config
 
 all: deploy install-skill
 
@@ -61,6 +69,26 @@ install-skill: _require-BASE_URL _require-SKILL_SECRET _require-TRAINING_GOAL
 	BASE_URL=$(BASE_URL) SKILL_SECRET=$(SKILL_SECRET) TRAINING_GOAL='$(TRAINING_GOAL)' \
 		envsubst '$$BASE_URL $$SKILL_SECRET $$TRAINING_GOAL' < $(SKILL_DIR)/SKILL.md > $(SKILL_TARGET)/SKILL.md
 	@echo "  Installed: $(SKILL_TARGET)/SKILL.md"
+
+# Renders the committed template with the secret from .env. The generated
+# functions.json is gitignored — it carries SKILL_SECRET.
+bench-config: _require-SKILL_SECRET _require-BENCH_ACTIVITY_ID
+	@echo "→ Rendering bench config..."
+	SKILL_SECRET=$(SKILL_SECRET) BENCH_ACTIVITY_ID=$(BENCH_ACTIVITY_ID) \
+		envsubst '$$SKILL_SECRET $$BENCH_ACTIVITY_ID' \
+		< $(BENCH_DIR)/functions.json.template > $(BENCH_DIR)/functions.json
+	@echo "  Wrote: $(BENCH_DIR)/functions.json"
+
+# Needs the patched lambda-bench (payload support + memory sweep):
+#   uv tool install --editable ~/repos/lambda-bench
+bench: bench-config
+	@echo "→ Benchmarking intervals Lambda across memory tiers..."
+	lambda-bench run \
+		--config $(BENCH_DIR)/functions.json \
+		--cold-iters $(BENCH_COLD_ITERS) \
+		--warm-iters $(BENCH_WARM_ITERS) \
+		--region $(BENCH_REGION) \
+		--output-dir $(BENCH_DIR)/results/
 
 create-secret: _require-CLIENT_ID _require-CLIENT_SECRET _require-REFRESH_TOKEN _require-SKILL_SECRET
 	@echo "→ Creating Secrets Manager secret $(SECRET_NAME)..."
