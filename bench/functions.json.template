@@ -1,0 +1,50 @@
+[
+  {
+    "label": "intervals 256MB",
+    "function_name": "IntervalsSkillStack-IntervalsSkillStackProxyHandle-J5HtZ3uzuBkJ",
+    "memory_mb": 256,
+    "variant": "go",
+    "payload": {
+      "rawPath": "/mcp",
+      "headers": { "x-claude-secret": "${SKILL_SECRET}", "content-type": "application/json" },
+      "requestContext": { "http": { "method": "POST" } },
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"get_streams\",\"arguments\":{\"id\":\"${BENCH_ACTIVITY_ID}\"}}}"
+    }
+  },
+  {
+    "label": "intervals 512MB",
+    "function_name": "IntervalsSkillStack-IntervalsSkillStackProxyHandle-J5HtZ3uzuBkJ",
+    "memory_mb": 512,
+    "variant": "go",
+    "payload": {
+      "rawPath": "/mcp",
+      "headers": { "x-claude-secret": "${SKILL_SECRET}", "content-type": "application/json" },
+      "requestContext": { "http": { "method": "POST" } },
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"get_streams\",\"arguments\":{\"id\":\"${BENCH_ACTIVITY_ID}\"}}}"
+    }
+  },
+  {
+    "label": "intervals 1024MB",
+    "function_name": "IntervalsSkillStack-IntervalsSkillStackProxyHandle-J5HtZ3uzuBkJ",
+    "memory_mb": 1024,
+    "variant": "go",
+    "payload": {
+      "rawPath": "/mcp",
+      "headers": { "x-claude-secret": "${SKILL_SECRET}", "content-type": "application/json" },
+      "requestContext": { "http": { "method": "POST" } },
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"get_streams\",\"arguments\":{\"id\":\"${BENCH_ACTIVITY_ID}\"}}}"
+    }
+  },
+  {
+    "label": "intervals 1792MB",
+    "function_name": "IntervalsSkillStack-IntervalsSkillStackProxyHandle-J5HtZ3uzuBkJ",
+    "memory_mb": 1792,
+    "variant": "go",
+    "payload": {
+      "rawPath": "/mcp",
+      "headers": { "x-claude-secret": "${SKILL_SECRET}", "content-type": "application/json" },
+      "requestContext": { "http": { "method": "POST" } },
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"get_streams\",\"arguments\":{\"id\":\"${BENCH_ACTIVITY_ID}\"}}}"
+    }
+  }
+]

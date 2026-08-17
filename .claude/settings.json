@@ -11,7 +11,18 @@
       "Bash(gh repo view *)",
       "Bash(gh pr list *)",
       "Bash(gh pr create *)",
-      "Bash(gh pr create *)"
+      "Read(//home/jack/repos/lambda-bench/**)",
+      "Edit(//home/jack/repos/lambda-bench/**)",
+      "Write(//home/jack/repos/lambda-bench/**)",
+      "Bash(uv *)",
+      "Bash(pytest *)",
+      "Bash(cd /home/jack/repos/lambda-bench && uv run pytest -q 2>&1 | tail -30)",
+      "Bash(make bench-config *)",
+      "Bash(grep -q '^\\\\${')"
+    ],
+    "additionalDirectories": [
+      "/home/jack/repos/lambda-bench/",
+      "/home/jack/repos/lambda-bench/src/lambdabench"
     ]
   }
 }
