@@ -109,6 +109,25 @@ Claude.ai will discover four tools: `list_activities`, `get_activity`, `get_stre
 `get_intervals` (intervals.icu's auto-detected interval segments — richer than Strava laps,
 with per-interval average power/HR/pace).
 
+#### Temperature provenance (`temp_source`)
+
+intervals.icu returns two unrelated temperatures under confusingly similar names. `average_temp`
+/ `min_temp` / `max_temp` are the **device sensor** reading — on a wrist-worn watch that is
+mostly skin contact and body heat, not the air. Ambient temperature lives in
+`average_weather_temp` / `min_weather_temp` / `max_weather_temp`, and is only populated when
+`has_weather` is `true`.
+
+The values look plausible either way, so this gets misread silently — a 30°C wrist on a 14°C
+afternoon becomes a phantom heat explanation for cardiac drift. The intervals proxy therefore
+adds a `temp_source` field to every activity it returns, on both the `/activities` REST routes
+and the `list_activities` / `get_activity` MCP tools:
+
+| `temp_source` | meaning |
+|---|---|
+| `weather_service` | `average_weather_temp` and friends are real ambient temperature — use those |
+| `device_sensor` | only the sensor reading exists; a `temp_note` field spells out the caveat |
+| `unavailable` | no temperature of either kind |
+
 ## Usage
 
 **Claude Code** — just ask naturally:
