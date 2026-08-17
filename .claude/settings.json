@@ -2,9 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(gofmt *)",
-      "Bash(go vet *)",
       "Bash(go build *)",
-      "Bash(go test *)"
+      "Bash(go test *)",
+      "Bash(go vet *)",
+      "Bash(git rev-list *)",
+      "Bash(git log *)",
+      "Bash(git ls-remote *)",
+      "Bash(gh repo view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr create *)"
     ]
   }
 }
